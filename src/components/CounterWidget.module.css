@@ -1,0 +1,147 @@
+.widget {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 600px;
+}
+
+.widgetTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #1a1a2e;
+}
+
+/* List */
+.list {
+  list-style: none;
+  margin: 0 0 1rem 0;
+  padding: 0;
+}
+
+/* Row */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.rowName {
+  flex: 1;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.rowValue {
+  font-variant-numeric: tabular-nums;
+  min-width: 2.5rem;
+  text-align: right;
+  color: #2c3e50;
+}
+
+.rowError {
+  font-size: 0.8rem;
+  color: #c0392b;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  background: #646cff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: #535bf2;
+}
+
+.btn:disabled {
+  background: #b0b4ff;
+  cursor: not-allowed;
+}
+
+.resetBtn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.resetBtn:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.resetBtn:disabled {
+  background: #f0a09a;
+  cursor: not-allowed;
+}
+
+/* Empty state */
+.emptyState {
+  color: #888;
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
+/* Loading / error at list level */
+.loading {
+  color: #888;
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.error {
+  color: #c0392b;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Add form */
+.addForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: #646cff;
+}
+
+.inputError {
+  font-size: 0.8rem;
+  color: #c0392b;
+  width: 100%;
+  margin-top: 0.25rem;
+}
