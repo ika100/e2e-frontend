@@ -59,14 +59,6 @@ Stack: React 18 + Vite 5 + TypeScript 5, tested with Vitest + RTL, served by ngi
 
 ---
 
-### Wave 4 — Counter List Feature **[single task]**
-
-| ID | Title | Implements | Depends on | Acceptance criteria | Tests | Est | Milestone |
-|----|-------|-----------|------------|---------------------|-------|-----|-----------|
-| T-050 | Counter list view with increment & reset per row | counter-widget/spec.md REQ-1,2,3,4,5,6 | T-021 | `counterClient.ts` exports `listCounters()` (`GET /counters` → `{ counters }`) and `resetCounter(name)` (`DELETE /counters/:name` → `204`); `CounterWidget.tsx` loads counter list on mount; renders each counter as a row with name, value, Increment button, Reset button; Increment updates the row value without full reload; Reset removes the row; empty-state message shown when list is empty; name input + "Add & Increment" button adds new counter to list and clears input; client-side validation `[a-zA-Z0-9_-]{1,100}` on name input; inline error on 404/429/5xx/network; loading state shown; all existing TC-041–TC-050 tests updated/replaced; new tests cover list load, empty state, per-row increment, per-row reset, add new counter, validation | TC-050, TC-051, TC-052, TC-053, TC-054, TC-055, TC-056, TC-057 | M | M3 |
-
----
-
 ## Release Tasks (serial — run after all feature waves)
 
 | ID | Title | Implements | Depends on | Acceptance criteria | Tests | Est | Milestone |
