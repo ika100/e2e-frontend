@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-28
+
+## [0.1.1] - 2026-07-28
+
 ## [0.1.0] — 2025-07-28
 
 ### Added
@@ -30,3 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **32 unit/component tests** — 95.81% overall coverage, 99.03% component coverage
 
 [0.1.0]: https://github.com/ika100/e2e-frontend/releases/tag/v0.1.0
+
+[Unreleased]: https://github.com/ika100/e2e-frontend/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ika100/e2e-frontend/compare/v0.1.0...v0.1.1

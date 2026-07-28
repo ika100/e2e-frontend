@@ -6,7 +6,7 @@ docker-image: ghcr.io/ika100/e2e-frontend
 gitops-repo: https://github.com/ika100/e2e-gitops.git
 gitops-values-path: apps/frontend/values.yaml
 base-branch: main
-version: 0.1.0
+version: 0.1.1
 ---
 
 # frontend
