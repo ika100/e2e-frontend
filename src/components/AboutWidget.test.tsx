@@ -52,7 +52,12 @@ describe('About page', () => {
     vi.clearAllMocks()
     // Default: both services respond successfully
     mockFetchVersion.mockImplementation((baseUrl: string) => {
-      if (baseUrl === 'http://localhost:3000') {
+      // AboutWidget calls fetchVersion(VITE_GREETING_SERVICE_URL + '/greet')
+      // and fetchVersion(VITE_COUNTER_SERVICE_URL + '/counters').
+      // In tests VITE_GREETING_SERVICE_URL='http://localhost:3000', so:
+      //   greeting call  → 'http://localhost:3000/greet'
+      //   counter call   → 'http://localhost:3001/counters'
+      if (baseUrl === 'http://localhost:3000/greet') {
         return Promise.resolve(greetingVersionResponse)
       }
       return Promise.resolve(counterVersionResponse)
@@ -170,7 +175,7 @@ describe('About page', () => {
   it('TC-ABOUT-008: shows error for unavailable service without blocking other rows', async () => {
     const networkErr: ApiError = { type: 'network', message: 'Unavailable' }
     mockFetchVersion.mockImplementation((baseUrl: string) => {
-      if (baseUrl === 'http://localhost:3000') {
+      if (baseUrl === 'http://localhost:3000/greet') {
         return Promise.reject(networkErr)
       }
       return Promise.resolve(counterVersionResponse)

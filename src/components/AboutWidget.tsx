@@ -35,9 +35,13 @@ function AboutWidget() {
   ])
 
   useEffect(() => {
+    // In local k3d the VITE_ vars are baked as '' at build time, so we
+    // append the Ingress path prefix so requests route correctly:
+    //   /greet/version  → Ingress /greet* → greeting-service GET /greet/version
+    //   /counters/version → Ingress /counters* → counter-service GET /counters/version
     void Promise.allSettled([
-      fetchVersion(greetingBaseUrl),
-      fetchVersion(counterBaseUrl),
+      fetchVersion(`${greetingBaseUrl}/greet`),
+      fetchVersion(`${counterBaseUrl}/counters`),
     ]).then(([greetingResult, counterResult]) => {
       setServices(prev => {
         const next = [...prev]
