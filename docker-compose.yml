@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      VITE_GREETING_SERVICE_URL: http://greeting-service:3000
+      VITE_COUNTER_SERVICE_URL: http://counter-service:3001
+    depends_on:
+      - greeting-service
+      - counter-service
+    networks:
+      - e2e-platform
+
+  greeting-service:
+    image: ghcr.io/ika100/e2e-greeting-service:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - e2e-platform
+
+  counter-service:
+    image: ghcr.io/ika100/e2e-counter-service:latest
+    ports:
+      - "3001:3001"
+    networks:
+      - e2e-platform
+
+networks:
+  e2e-platform:
+    driver: bridge
