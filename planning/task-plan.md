@@ -67,6 +67,76 @@ Stack: React 18 + Vite 5 + TypeScript 5, tested with Vitest + RTL, served by ngi
 
 ---
 
+### Wave 5 **[single task]** — About Feature _(branch from main after Wave 4 merged)_
+
+| ID | Title | Implements | Depends on | Acceptance criteria | Tests | Est | Milestone |
+|----|-------|-----------|------------|---------------------|-------|-----|-----------|-----|
+| T-060 | Version API client | about/spec.md VER-001 | T-011 (apiClient) | `src/api/versionClient.ts` exports `fetchVersion(baseUrl: string): Promise<VersionResponse>` using `apiFetch`; `VersionResponse` has `{ name: string; version: string; gitUrl: string }`; unit tests cover success, network error, timeout, and non-2xx response; `devbox run test` exits 0 | TC-VER-001, TC-VER-002, TC-VER-003 | S | M3 |
+| T-061 | About page, widget & nav entry | about/spec.md NAV-001, ABOUT-001–005 | T-010 (routing), T-060 | `AboutWidget.tsx`: fetches from `VITE_GREETING_SERVICE_URL/version` and `VITE_COUNTER_SERVICE_URL/version` in parallel via `Promise.allSettled`; frontend row uses `import.meta.env.VITE_FRONTEND_VERSION` and `VITE_FRONTEND_GIT_URL`; renders a row per service with name, version, and GitHub link (target=\_blank, rel=noopener noreferrer); shows loading state during fetch; shows per-row error message on fetch failure without blocking other rows; `AboutPage` wraps `AboutWidget` with aria-labelledby heading; `App.tsx` adds `<Route path="/about" component={AboutPage} />`; `Header.tsx` adds "About" nav link with active-state styling and `aria-current="page"`; `.env.example` updated with `VITE_FRONTEND_VERSION` and `VITE_FRONTEND_GIT_URL`; all existing tests still pass; new tests cover: nav link renders, active state on /about, widget loading state, success row render, per-row error state, GitHub link attributes | TC-ABOUT-001–010 | M | M3 |
+
+**T-061 key implementation details:**
+
+```typescript
+// src/api/versionClient.ts
+import { apiFetch } from './apiClient'
+
+export interface VersionResponse {
+  name: string
+  version: string
+  gitUrl: string
+}
+
+export async function fetchVersion(baseUrl: string): Promise<VersionResponse> {
+  return apiFetch<VersionResponse>(`${baseUrl}/version`)
+}
+```
+
+```typescript
+// src/components/AboutWidget.tsx  (structure)
+// State: ServiceInfo[] where ServiceInfo = { name, version, gitUrl, status, errorMessage? }
+// On mount: call Promise.allSettled([
+//   fetchVersion(VITE_GREETING_SERVICE_URL),
+//   fetchVersion(VITE_COUNTER_SERVICE_URL),
+// ])
+// Map settled results into rows; prepend frontend self-row from env vars
+// Render a <table> or <ul> with one row per service
+```
+
+```typescript
+// In App.tsx — add:
+function AboutPage() {
+  return (
+    <main className="page" aria-labelledby="about-heading">
+      <h2 id="about-heading">About</h2>
+      <AboutWidget />
+    </main>
+  )
+}
+// And in <Switch>:
+// <Route path="/about" component={AboutPage} />
+```
+
+```typescript
+// In Header.tsx — add nav entry:
+<li>
+  <Link
+    href="/about"
+    aria-current={location === '/about' ? 'page' : undefined}
+    className={location === '/about' ? `${styles.navLink} ${styles.active}` : styles.navLink}
+  >
+    About
+  </Link>
+</li>
+```
+
+**.env.example additions:**
+```
+VITE_FRONTEND_VERSION=0.1.3
+VITE_FRONTEND_GIT_URL=https://github.com/ika100/e2e-frontend
+```
+
+---
+
 ## Release Tasks (serial — run after all feature waves)
 
 | ID | Title | Implements | Depends on | Acceptance criteria | Tests | Est | Milestone |
@@ -99,7 +169,12 @@ Wave 3 (parallel, branch from main after Wave 2 merged):
 T-REL-002 (serial, after all waves merged)
 ```
 
-**Critical path:** T-001 → T-DEVBOX-001 → T-CI-001 → T-010 + T-011 → T-020 + T-021 → T-REL-002
+Wave 5 (single task, after Wave 4 merged):
+  T-060 [Version API client] → T-061 [About page, widget & nav entry]
+
+T-REL-002 (serial, after all waves merged)
+
+**Critical path:** T-001 → T-DEVBOX-001 → T-CI-001 → T-010 + T-011 → T-020 + T-021 → T-060 → T-061 → T-REL-002
 
 ## Git Flow (per task in parallel waves)
 
