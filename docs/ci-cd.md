@@ -6,22 +6,34 @@ The CI/CD pipeline runs on **GitHub Actions** (ADR-0001). It covers the full lif
 from PR validation through container release and GitOps update.
 
 ```
-PR opened / push to main                      Tag: v*
-        │                                         │
-        ▼                                         ▼
-  ┌─────────────┐   ┌─────────────┐   ┌──────────────┐   ┌───────────────┐
-  │  security   │→  │    test     │→  │    build     │→  │    release    │
-  │ (CodeQL,    │   │ (lint,      │   │ (Docker      │   │ (semver tag,  │
-  │  Trivy fs,  │   │  vitest)    │   │  build+scan) │   │  push latest) │
-  │  gitleaks)  │   │             │   │              │   │               │
-  └─────────────┘   └─────────────┘   └──────────────┘   └───────────────┘
-                                                                  │
-                                                         ┌────────▼────────┐
-                                                         │  gitops-update  │
-                                                         │ (PR to e2e-     │
-                                                         │  gitops repo)   │
-                                                         └─────────────────┘
+PR opened                         push to main                    Tag: v*
+     │                                  │                              │
+     ▼                                  ▼                              ▼
+┌─────────┐  ┌──────┐  ┌───────┐  ┌───────┐  ┌───────────┐  ┌──────────────┐
+│security │→ │ test │→ │ build │  │ build │→ │deploy-dev │  │   release    │
+│(CodeQL, │  │(lint,│  │(Docker│  │(push  │  │(update    │  │(semver tag,  │
+│Trivy fs,│  │vitest│  │build) │  │:sha-* │  │values-    │  │push :semver) │
+│gitleaks)│  │     )│  │       │  │:main) │  │local.yaml)│  │              │
+└─────────┘  └──────┘  └───────┘  └───────┘  └───────────┘  └──────────────┘
+                                                   │                  │
+                                    ArgoCD auto-syncs          ┌──────▼──────┐
+                                    dev k8s cluster ←──────────│gitops-update│
+                                    (immutable SHA tag)        │(PR to prod  │
+                                                               │ values.yaml)│
+                                                               └─────────────┘
 ```
+
+### Two-track continuous deployment
+
+| Track | Trigger | Image tag used | GitOps file updated | Review required |
+|-------|---------|---------------|--------------------|-----------------|
+| **Dev / local** | Every merge to `main` | `sha-<commit>` (immutable) | `values-local.yaml` | No — direct commit |
+| **Production** | Version tag `v*` | `0.2.0` (semver, immutable) | `values-prod.yaml` via PR | Yes — PR review |
+
+**Why immutable SHA tags for dev?** ArgoCD watches the GitOps repo for file changes, not the
+container registry. A mutable tag like `:main` never changes in `values-local.yaml`, so
+ArgoCD would never detect a new image and never resync. Updating the file to `sha-<commit>`
+on every merge gives ArgoCD a real diff to react to.
 
 ## Pipeline Stages
 
@@ -47,23 +59,31 @@ PR opened / push to main                      Tag: v*
 | Step | Tool | Gate |
 |------|------|------|
 | Docker build | `docker/build-push-action` (no push on PR) | Build failure → block |
-| Container CVE scan | `aquasecurity/trivy-action` (image) | CRITICAL/HIGH → block release |
-| Push image (main only) | `ghcr.io/ika100/e2e-frontend:sha-<sha>` + `:main` | Push failure → block |
+| Container CVE scan | `aquasecurity/trivy-action` (image, `:main` tag) | CRITICAL/HIGH → block |
+| Push image (main push only) | `ghcr.io/ika100/e2e-frontend:sha-<sha>` + `:main` | Push failure → block |
 
-### Stage 4: Release (runs only on `v*` tags)
+### Stage 4a: Deploy to dev (runs after build, on every push to `main`)
+
+| Step | Action |
+|------|--------|
+| Checkout `ika100/e2e-gitops` | Uses `GITOPS_PAT` / `GITOPS_REPO` secrets |
+| Update `apps/frontend/values-local.yaml` | `yq e -i ".image.tag = \"sha-<sha>\""` |
+| Commit + push directly to gitops `main` | ArgoCD auto-syncs → dev k8s updated |
+
+### Stage 4b: Release (runs only on `v*` tags)
 
 | Step | Action |
 |------|--------|
 | Build + push release image | `ghcr.io/ika100/e2e-frontend:{semver}` + `:latest` |
 | Create GitHub Release | `softprops/action-gh-release` with `.release-notes.md` |
 
-### Stage 5: GitOps Update (runs after release, `v*` tags only)
+### Stage 5: GitOps Update for prod (runs after release, `v*` tags only)
 
 | Step | Action |
 |------|--------|
 | Checkout `ika100/e2e-gitops` | Uses `GITOPS_PAT` secret |
-| Update `apps/frontend/values.yaml` | `yq e -i ".image.tag = \"${VERSION}\""` |
-| Open PR in gitops repo | `peter-evans/create-pull-request` |
+| Update `apps/frontend/values-prod.yaml` | `yq e -i ".image.tag = \"${VERSION}\""` |
+| Open PR in gitops repo | `peter-evans/create-pull-request` — requires human review |
 
 ## GitHub Actions Workflow Template
 
