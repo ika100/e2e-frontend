@@ -95,6 +95,35 @@
 
 ---
 
+---
+
+### About Feature Test Cases (T-060, T-061)
+
+**Version API client (T-060):**
+
+| Test ID | Level | Verifies | For task | Preconditions | Steps | Expected result |
+|---------|-------|---------|----------|---------------|-------|------------------|
+| TC-VER-001 | Unit | `fetchVersion` returns parsed `VersionResponse` on 200 | T-060 | MSW mock returns `{ name, version, gitUrl }` | Call `fetchVersion('http://mock')` | Resolves with correct object |
+| TC-VER-002 | Unit | `fetchVersion` throws `ApiError` on network failure | T-060 | MSW mock triggers network error | Call `fetchVersion('http://mock')` | Rejects with `{ type: 'network', ... }` |
+| TC-VER-003 | Unit | `fetchVersion` throws `ApiError` on 503 response | T-060 | MSW mock returns 503 | Call `fetchVersion('http://mock')` | Rejects with `{ type: 'service', message: 'HTTP 503' }` |
+
+**About page + widget (T-061):**
+
+| Test ID | Level | Verifies | For task | Preconditions | Steps | Expected result |
+|---------|-------|---------|----------|---------------|-------|------------------|
+| TC-ABOUT-001 | Component | "About" nav link appears in Header | T-061 | Header rendered | Render `<Header />` | Element with text "About" and href="/about" present |
+| TC-ABOUT-002 | Component | Active state on /about route | T-061 | wouter location set to `/about` | Render `<Header />` on `/about` | "About" link has `aria-current="page"`; Greeting and Counter do not |
+| TC-ABOUT-003 | Component | AboutPage renders heading | T-061 | Route `/about` rendered | Navigate to `/about` | `<h2 id="about-heading">About</h2>` present |
+| TC-ABOUT-004 | Component | Loading indicator shown during fetch | T-061 | MSW delays responses | Render `<AboutWidget />` before fetch resolves | Element with role="status" and text containing "Loading" visible |
+| TC-ABOUT-005 | Component | Success: all three service rows rendered | T-061 | MSW returns success for both backend `/version` endpoints; env vars set | Render `<AboutWidget />`; await completion | Rows for "greeting-service", "counter-service", and "frontend" all visible with version strings |
+| TC-ABOUT-006 | Component | GitHub links have correct href and security attrs | T-061 | Rows rendered | Query all `<a>` elements in the widget | Each link has `target="_blank"` and `rel="noopener noreferrer"` and correct GitHub URL |
+| TC-ABOUT-007 | Component | Frontend version shown from env var | T-061 | `VITE_FRONTEND_VERSION=1.2.3` set in test | Render `<AboutWidget />` | Frontend row shows version "1.2.3" without HTTP call |
+| TC-ABOUT-008 | Component | Per-row error: one service unavailable | T-061 | MSW: greeting-service returns 503; counter-service returns 200 | Render `<AboutWidget />`; await | Greeting-service row shows error message; counter-service row shows version; frontend row shows version |
+| TC-ABOUT-009 | Component | Per-row timeout error shown | T-061 | MSW delays greeting-service beyond 10 s | Render `<AboutWidget />`; await | Greeting-service row shows timeout error; other rows unaffected |
+| TC-ABOUT-010 | Accessibility | No WCAG 2.1 AA violations on About page | T-061 | Full About page rendered with data | Run axe-core | Zero violations |
+
+---
+
 ## Traceability Check
 
 - [x] All ui-shell/spec.md scenarios covered (TC-011 – TC-017)
@@ -102,6 +131,7 @@
 - [x] All counter-widget/spec.md scenarios covered (TC-041 – TC-050)
 - [x] All contracts/spec.md requirements covered (TC-021 – TC-025, TC-038, TC-039)
 - [x] All security/spec.md requirements covered (TC-SEC-001 – TC-SEC-006)
+- [x] **All about/spec.md scenarios covered (TC-VER-001–TC-VER-003, TC-ABOUT-001–TC-ABOUT-010)**
 - [x] Every coding task appears in the "For task" column at least once
 - [x] Error and negative cases have dedicated test cases
 - [x] Security test cases TC-SEC-001 through TC-SEC-004 are present (mandatory)
