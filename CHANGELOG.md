@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] — 2025-07-28
+
 ### Added
-- Initial project scaffolding (React + Vite + TypeScript)
-- App shell with routing and error boundary
-- Shared API client with timeout support
-- Greeting widget
-- Counter widget
-- Multi-stage Docker image with nginx:alpine
-- CI/CD pipeline with GitHub Actions
-- Security scanning (CodeQL, Trivy, Gitleaks)
+- **App shell** — SPA with `wouter` client-side routing (`/` Greeting, `/counter` Counter),
+  `ErrorBoundary` component, `Header` with active-link highlighting, `NotFound` 404 page
+- **Shared API client** — `apiFetch` with 10-second `AbortController` timeout; normalises
+  all errors to `{ type: 'network' | 'timeout' | 'service', message }` 
+- **Greeting widget** — name input + "Get Greeting" button; calls `GET /greet?name=X`;
+  URL-encodes name; shows loading indicator, success greeting, inline error
+- **Counter widget** — counter name input + Read/Increment buttons; client-side validation
+  of `[a-zA-Z0-9_-]{1,100}`; displays `name: value` on success; handles 404/429/5xx
+- **Multi-stage Dockerfile** — `node:22-alpine` builder + `nginx:alpine` runtime; runs as
+  non-root UID 1001; port 8080; CSP/security headers via `envsubst` at startup
+- **Docker Compose** — starts frontend + greeting-service + counter-service locally
+- **GitHub Actions CI/CD** — `security`, `test`, `build`, `release`, `gitops-update` jobs;
+  CodeQL, Trivy, gitleaks scanning; image push to `ghcr.io/ika100/e2e-frontend`
+- **Security scanning** — `npm audit --audit-level=high --omit=dev`; gitleaks secrets scan;
+  Trivy filesystem and image scans; all dev-tool CVEs documented
+- **Responsive accessible layout** — WCAG 2.1 AA; keyboard navigation; visible focus rings;
+  no horizontal scroll at 320px
+- **32 unit/component tests** — 95.81% overall coverage, 99.03% component coverage
+
+[0.1.0]: https://github.com/ika100/e2e-frontend/releases/tag/v0.1.0
