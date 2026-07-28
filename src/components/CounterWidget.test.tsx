@@ -1,103 +1,179 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CounterWidget from './CounterWidget'
 import * as counterClient from '../api/counterClient'
 import type { ApiError } from '../api/apiClient'
 
-// Mock the counter client module
 vi.mock('../api/counterClient', () => ({
+  listCounters: vi.fn(),
   readCounter: vi.fn(),
   incrementCounter: vi.fn(),
+  resetCounter: vi.fn(),
 }))
 
-const mockReadCounter = vi.mocked(counterClient.readCounter)
+const mockListCounters = vi.mocked(counterClient.listCounters)
 const mockIncrementCounter = vi.mocked(counterClient.incrementCounter)
+const mockResetCounter = vi.mocked(counterClient.resetCounter)
 
-describe('CounterWidget', () => {
+/** Render widget and wait for the initial list load to settle */
+async function renderAndWait() {
+  const view = render(<CounterWidget />)
+  // Wait for loading indicator to disappear
+  await waitFor(() => {
+    expect(screen.queryByText(/loading counters/i)).not.toBeInTheDocument()
+  })
+  return view
+}
+
+describe('CounterWidget — list view', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  // TC-041: widget is visible
-  it('TC-041: renders counter name input and Read/Increment buttons', () => {
-    render(<CounterWidget />)
-    expect(screen.getByPlaceholderText(/counter name/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /read counter/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /increment counter/i })).toBeInTheDocument()
+  // TC-050: list loads on mount
+  it('TC-050: renders counter list on mount', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [
+        { name: 'clicks', value: 3 },
+        { name: 'visits', value: 42 },
+      ],
+    })
+    await renderAndWait()
+
+    const list = screen.getByRole('list', { name: /counter list/i })
+    expect(within(list).getByText('clicks')).toBeInTheDocument()
+    expect(within(list).getByText('3')).toBeInTheDocument()
+    expect(within(list).getByText('visits')).toBeInTheDocument()
+    expect(within(list).getByText('42')).toBeInTheDocument()
   })
 
-  // TC-042: empty input disables buttons
-  it('TC-042: both buttons disabled when input is empty', () => {
-    render(<CounterWidget />)
-    expect(screen.getByRole('button', { name: /read counter/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /increment counter/i })).toBeDisabled()
+  // TC-051: empty-state message
+  it('TC-051: shows empty-state message when no counters exist', async () => {
+    mockListCounters.mockResolvedValueOnce({ counters: [] })
+    await renderAndWait()
+
+    expect(screen.getByText(/no counters yet/i)).toBeInTheDocument()
   })
 
-  // TC-043: read counter exists
-  it('TC-043: displays counter value on successful read', async () => {
-    mockReadCounter.mockResolvedValueOnce({ name: 'visits', value: 42 })
+  // TC-052: per-row increment updates value in-place
+  it('TC-052: increment button updates row value without full reload', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [{ name: 'clicks', value: 5 }],
+    })
+    mockIncrementCounter.mockResolvedValueOnce({ name: 'clicks', value: 6 })
 
-    render(<CounterWidget />)
+    await renderAndWait()
     const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /increment clicks/i }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/clicks value/i)).toHaveTextContent('6')
+    })
+    expect(mockIncrementCounter).toHaveBeenCalledWith('clicks')
+    // listCounters should NOT have been called again (no full reload)
+    expect(mockListCounters).toHaveBeenCalledTimes(1)
+  })
+
+  // TC-053: per-row reset removes row
+  it('TC-053: reset button removes counter row from list', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [
+        { name: 'alpha', value: 1 },
+        { name: 'beta', value: 2 },
+      ],
+    })
+    mockResetCounter.mockResolvedValueOnce(undefined)
+
+    await renderAndWait()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /reset alpha/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('alpha')).not.toBeInTheDocument()
+    })
+    expect(mockResetCounter).toHaveBeenCalledWith('alpha')
+    // beta still in list
+    expect(screen.getByText('beta')).toBeInTheDocument()
+  })
+
+  // TC-053b: empty state shown after last counter reset
+  it('TC-053b: shows empty-state after resetting last counter', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [{ name: 'only', value: 7 }],
+    })
+    mockResetCounter.mockResolvedValueOnce(undefined)
+
+    await renderAndWait()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /reset only/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/no counters yet/i)).toBeInTheDocument()
+    })
+  })
+
+  // TC-054: Add & Increment creates new row and clears input
+  it('TC-054: Add & Increment adds new counter row and clears input', async () => {
+    mockListCounters.mockResolvedValueOnce({ counters: [] })
+    mockIncrementCounter.mockResolvedValueOnce({ name: 'pageviews', value: 1 })
+
+    await renderAndWait()
+    const user = userEvent.setup()
+
+    const input = screen.getByPlaceholderText(/counter name/i)
+    await user.type(input, 'pageviews')
+    await user.click(screen.getByRole('button', { name: /add and increment counter/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('pageviews')).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText(/pageviews value/i)).toHaveTextContent('1')
+    expect(input).toHaveValue('')
+    expect(mockIncrementCounter).toHaveBeenCalledWith('pageviews')
+  })
+
+  // TC-054b: Add existing counter increments it in-place
+  it('TC-054b: adding existing counter name increments existing row', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [{ name: 'visits', value: 10 }],
+    })
+    mockIncrementCounter.mockResolvedValueOnce({ name: 'visits', value: 11 })
+
+    await renderAndWait()
+    const user = userEvent.setup()
+
     await user.type(screen.getByPlaceholderText(/counter name/i), 'visits')
-    await user.click(screen.getByRole('button', { name: /read counter/i }))
+    await user.click(screen.getByRole('button', { name: /add and increment counter/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('visits: 42')).toBeInTheDocument()
+      expect(screen.getByLabelText(/visits value/i)).toHaveTextContent('11')
     })
-    expect(mockReadCounter).toHaveBeenCalledWith('visits')
+    // Only one row for 'visits'
+    expect(screen.getAllByText('visits')).toHaveLength(1)
   })
 
-  // TC-044: 404 not found
-  it('TC-044: shows not-found message on 404', async () => {
-    const err: ApiError = { type: 'service', message: 'HTTP 404' }
-    mockReadCounter.mockRejectedValueOnce(err)
+  // TC-055: Add button disabled on empty input
+  it('TC-055: Add & Increment button is disabled when input is empty', async () => {
+    mockListCounters.mockResolvedValueOnce({ counters: [] })
+    await renderAndWait()
 
-    render(<CounterWidget />)
-    const user = userEvent.setup()
-    await user.type(screen.getByPlaceholderText(/counter name/i), 'x')
-    await user.click(screen.getByRole('button', { name: /read counter/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText(/counter 'x' has not been created yet/i)).toBeInTheDocument()
-    })
+    expect(
+      screen.getByRole('button', { name: /add and increment counter/i }),
+    ).toBeDisabled()
   })
 
-  // TC-045: successful increment
-  it('TC-045: shows updated value on successful increment', async () => {
-    mockIncrementCounter.mockResolvedValueOnce({ name: 'clicks', value: 5 })
+  // TC-056: validation error for invalid name
+  it('TC-056: shows validation error for invalid counter name', async () => {
+    mockListCounters.mockResolvedValueOnce({ counters: [] })
+    await renderAndWait()
 
-    render(<CounterWidget />)
-    const user = userEvent.setup()
-    await user.type(screen.getByPlaceholderText(/counter name/i), 'clicks')
-    await user.click(screen.getByRole('button', { name: /increment counter/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('clicks: 5')).toBeInTheDocument()
-    })
-  })
-
-  // TC-046: auto-create on first increment
-  it('TC-046: shows value 1 on first increment (auto-create)', async () => {
-    mockIncrementCounter.mockResolvedValueOnce({ name: 'new', value: 1 })
-
-    render(<CounterWidget />)
-    const user = userEvent.setup()
-    await user.type(screen.getByPlaceholderText(/counter name/i), 'new')
-    await user.click(screen.getByRole('button', { name: /increment counter/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('new: 1')).toBeInTheDocument()
-    })
-  })
-
-  // TC-047: invalid characters — no HTTP call
-  it('TC-047: shows validation error for invalid counter name characters', async () => {
-    render(<CounterWidget />)
     const user = userEvent.setup()
     await user.type(screen.getByPlaceholderText(/counter name/i), 'my counter!')
-    await user.click(screen.getByRole('button', { name: /increment counter/i }))
+    await user.click(screen.getByRole('button', { name: /add and increment counter/i }))
 
     expect(
       screen.getByText(
@@ -107,53 +183,88 @@ describe('CounterWidget', () => {
     expect(mockIncrementCounter).not.toHaveBeenCalled()
   })
 
-  // TC-048: name > 100 chars — no HTTP call
-  it('TC-048: shows validation error for name exceeding 100 characters', async () => {
-    render(<CounterWidget />)
+  it('TC-056b: shows validation error for name exceeding 100 characters', async () => {
+    mockListCounters.mockResolvedValueOnce({ counters: [] })
+    await renderAndWait()
+
     const user = userEvent.setup()
-    await user.type(
-      screen.getByPlaceholderText(/counter name/i),
-      'a'.repeat(101),
-    )
-    await user.click(screen.getByRole('button', { name: /read counter/i }))
+    await user.type(screen.getByPlaceholderText(/counter name/i), 'a'.repeat(101))
+    await user.click(screen.getByRole('button', { name: /add and increment counter/i }))
 
     expect(
       screen.getByText(/counter name must not exceed 100 characters/i),
     ).toBeInTheDocument()
-    expect(mockReadCounter).not.toHaveBeenCalled()
+    expect(mockIncrementCounter).not.toHaveBeenCalled()
   })
 
-  // TC-049: 429 rate limit
-  it('TC-049: shows rate limit message on 429', async () => {
+  // TC-057: error messages on API failures
+  it('TC-057: shows rate-limit error on 429 increment', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [{ name: 'clicks', value: 1 }],
+    })
     const err: ApiError = { type: 'service', message: 'HTTP 429' }
     mockIncrementCounter.mockRejectedValueOnce(err)
 
-    render(<CounterWidget />)
+    await renderAndWait()
     const user = userEvent.setup()
-    await user.type(screen.getByPlaceholderText(/counter name/i), 'clicks')
-    await user.click(screen.getByRole('button', { name: /increment counter/i }))
+
+    await user.click(screen.getByRole('button', { name: /increment clicks/i }))
 
     await waitFor(() => {
+      expect(screen.getByText(/too many requests/i)).toBeInTheDocument()
+    })
+    // Value unchanged
+    expect(screen.getByLabelText(/clicks value/i)).toHaveTextContent('1')
+  })
+
+  it('TC-057b: shows network error on failed list load', async () => {
+    const err: ApiError = { type: 'network', message: 'Network error' }
+    mockListCounters.mockRejectedValueOnce(err)
+
+    render(<CounterWidget />)
+    await waitFor(() => {
       expect(
-        screen.getByText(/too many requests/i),
+        screen.getByText(/could not reach the counter service/i),
       ).toBeInTheDocument()
     })
   })
 
-  // TC-050: 5xx error
-  it('TC-050: shows server error message on 5xx', async () => {
+  it('TC-057c: shows server error on 5xx reset', async () => {
+    mockListCounters.mockResolvedValueOnce({
+      counters: [{ name: 'clicks', value: 5 }],
+    })
     const err: ApiError = { type: 'service', message: 'HTTP 500' }
-    mockReadCounter.mockRejectedValueOnce(err)
+    mockResetCounter.mockRejectedValueOnce(err)
 
-    render(<CounterWidget />)
+    await renderAndWait()
     const user = userEvent.setup()
-    await user.type(screen.getByPlaceholderText(/counter name/i), 'clicks')
-    await user.click(screen.getByRole('button', { name: /read counter/i }))
+
+    await user.click(screen.getByRole('button', { name: /reset clicks/i }))
 
     await waitFor(() => {
       expect(
         screen.getByText(/the counter service encountered an error/i),
       ).toBeInTheDocument()
     })
+    // Counter still in list
+    expect(screen.getByText('clicks')).toBeInTheDocument()
+  })
+
+  it('TC-057d: shows timeout error', async () => {
+    const err: ApiError = { type: 'timeout', message: 'Request timed out. Please try again.' }
+    mockListCounters.mockRejectedValueOnce(err)
+
+    render(<CounterWidget />)
+    await waitFor(() => {
+      expect(screen.getByText(/request timed out/i)).toBeInTheDocument()
+    })
+  })
+
+  // Loading indicator shown while list is being fetched
+  it('shows loading indicator while fetching counters', () => {
+    // Never resolve — keep it pending
+    mockListCounters.mockReturnValueOnce(new Promise(() => {}))
+    render(<CounterWidget />)
+    expect(screen.getByText(/loading counters/i)).toBeInTheDocument()
   })
 })
