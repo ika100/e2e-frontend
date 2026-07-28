@@ -195,7 +195,10 @@ jobs:
       - name: Update dev image tag to sha-${{ github.sha }}
         if: steps.check.outputs.skip == 'false'
         run: |
-          SHA_TAG="sha-${{ github.sha }}"
+          # docker/metadata-action type=sha,prefix=sha- produces the SHORT sha (7 chars),
+          # matching what GitHub exposes as github.sha[:7]. Use the same length here.
+          SHORT_SHA="$(echo '${{ github.sha }}' | cut -c1-7)"
+          SHA_TAG="sha-${SHORT_SHA}"
           VALUES="gitops/apps/frontend/values-local.yaml"
           yq e -i ".image.tag = \"${SHA_TAG}\"" "$VALUES"
           cd gitops
@@ -204,7 +207,7 @@ jobs:
           git add apps/frontend/values-local.yaml
           # No-op if nothing changed (e.g. re-run of same commit)
           git diff --cached --quiet && echo "No change — already deployed" && exit 0
-          git commit -m "chore(cd): deploy frontend sha-${{ github.sha }} to dev"
+          git commit -m "chore(cd): deploy frontend ${SHA_TAG} to dev"
           git push
 
   gitops-update:
