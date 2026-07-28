@@ -5,6 +5,7 @@ import Header from './components/Header'
 import NotFound from './components/NotFound'
 import GreetingWidget from './components/GreetingWidget'
 import CounterWidget from './components/CounterWidget'
+import AboutWidget from './components/AboutWidget'
 import './App.css'
 
 function GreetingPage() {
@@ -25,6 +26,15 @@ function CounterPage() {
   )
 }
 
+function AboutPage() {
+  return (
+    <main className="page" aria-labelledby="about-heading">
+      <h2 id="about-heading">About</h2>
+      <AboutWidget />
+    </main>
+  )
+}
+
 function App() {
   useEffect(() => {
     document.title = 'e2e-platform'
@@ -37,6 +47,7 @@ function App() {
         <Switch>
           <Route path="/" component={GreetingPage} />
           <Route path="/counter" component={CounterPage} />
+          <Route path="/about" component={AboutPage} />
           <Route component={NotFound} />
         </Switch>
       </div>

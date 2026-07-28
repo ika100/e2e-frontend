@@ -38,6 +38,19 @@ function Header() {
                 Counter
               </Link>
             </li>
+            <li>
+              <Link
+                href="/about"
+                aria-current={location === '/about' ? 'page' : undefined}
+                className={
+                  location === '/about'
+                    ? `${styles.navLink} ${styles.active}`
+                    : styles.navLink
+                }
+              >
+                About
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>
