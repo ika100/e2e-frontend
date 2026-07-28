@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { fetchVersion, type VersionResponse } from './versionClient'
@@ -62,41 +62,46 @@ describe('fetchVersion', () => {
     })
   })
 
-  // timeout test
+  // TC-VER-TIMEOUT: timeout test using fake timers
   it('throws ApiError with type "timeout" when request exceeds 10 seconds', async () => {
-    server.use(
-      http.get(`${BASE_URL}/version`, async () => {
-        // Delay longer than the 10s timeout — but we use a fake timer approach
-        // Instead, we simulate abort by returning a never-resolving promise
-        await new Promise<never>(() => {
-          // never resolves — MSW will hang until the AbortSignal fires
-        })
-        return HttpResponse.json({})
-      }),
-    )
+    vi.useFakeTimers()
 
-    // Shorten the timeout by replacing the fetch with one that aborts immediately
-    // We test by mocking AbortController to fire quickly
-    // Since we can't easily control the 10s timer in unit tests without fake timers,
-    // we verify the timeout error type by directly testing the abort path
-    const controller = new AbortController()
-    controller.abort()
-
-    // Verify that an aborted fetch produces the right error type via apiFetch internals
-    // by testing with a network error which exercises the same error path
-    // The timeout branch is triggered by apiFetch's internal setTimeout
-    // For a unit test, we verify the error shape is correct when fetch is rejected with AbortError
-    const abortError = new DOMException('The operation was aborted.', 'AbortError')
+    // Replace fetch with a function that returns a promise that never resolves,
+    // but respects the AbortSignal so the timeout can fire via apiFetch's setTimeout.
     const originalFetch = globalThis.fetch
-    globalThis.fetch = async () => { throw abortError }
+    globalThis.fetch = (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      return new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          })
+        }
+      })
+    }
 
     try {
-      await expect(fetchVersion(BASE_URL)).rejects.toMatchObject({
-        type: 'network',
-        message: 'Request was cancelled.',
+      const fetchPromise = fetchVersion(BASE_URL)
+
+      // Pre-attach a rejection handler so the rejection is not flagged as
+      // "unhandled" while the timer fires during advanceTimersByTimeAsync.
+      const settled = fetchPromise.then(
+        () => ({ status: 'fulfilled' as const }),
+        (err: unknown) => ({ status: 'rejected' as const, reason: err }),
+      )
+
+      // Advance time past the 10-second timeout inside apiFetch
+      await vi.advanceTimersByTimeAsync(10_001)
+
+      const result = await settled
+      expect(result.status).toBe('rejected')
+      expect((result as { status: 'rejected'; reason: unknown }).reason).toMatchObject({
+        type: 'timeout',
+        message: 'Request timed out. Please try again.',
       })
     } finally {
       globalThis.fetch = originalFetch
+      vi.useRealTimers()
     }
   })
 })
