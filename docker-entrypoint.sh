@@ -6,8 +6,6 @@ set -e
 VITE_GREETING_SERVICE_URL="${VITE_GREETING_SERVICE_URL:-}"
 VITE_COUNTER_SERVICE_URL="${VITE_COUNTER_SERVICE_URL:-}"
 
-envsubst '${VITE_GREETING_SERVICE_URL} ${VITE_COUNTER_SERVICE_URL}' \
-  < /etc/nginx/nginx.conf.template \
-  > /etc/nginx/nginx.conf
+envsubst '${VITE_GREETING_SERVICE_URL} ${VITE_COUNTER_SERVICE_URL}'   < /etc/nginx/nginx.conf.template   > /tmp/nginx.conf
 
-exec nginx -g 'daemon off;'
+exec nginx -g 'daemon off;' -c /tmp/nginx.conf
