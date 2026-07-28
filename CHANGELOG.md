@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-28
+
+### Fixed
+- **security**: audit production deps only, skip devDep DoS false positives
+
+### Maintenance
+- fix Trivy container scan image-ref (use :main tag)
+- make gitleaks optional (graceful skip on Linux CI)
+- upgrade devbox-install-action to v0.13.0 (fix Nix lock permission)
+- trigger fresh CI run on public repo [skip release]
+
 ## [0.1.2] - 2026-07-28
 
 ## [0.1.1] - 2026-07-28
@@ -42,3 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/ika100/e2e-frontend/compare/v0.1.2...HEAD
 [0.1.2]: https://github.com/ika100/e2e-frontend/compare/v0.1.1...v0.1.2
+
+[Unreleased]: https://github.com/ika100/e2e-frontend/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/ika100/e2e-frontend/compare/v0.1.2...v0.1.3
